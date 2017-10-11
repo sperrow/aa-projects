@@ -15,11 +15,10 @@ class Display
     puts "-----".on_light_black * 8
     (0..7).each do |i|
       (0..7).each do |j|
+        piece = @board[[i, j]].to_s
         if cursor_pos == [i, j]
-          piece = @board[[i, j]].to_s
           print "|".on_light_black + " #{piece} ".on_red + "|".on_light_black
         else
-          piece = @board[[i, j]].to_s
           print "| #{piece} |".on_light_black
         end
       end
