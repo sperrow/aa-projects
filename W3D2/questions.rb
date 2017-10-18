@@ -40,6 +40,45 @@ class ModelBase
 
     models.map { |m| self.new(m) }
   end
+
+  def self.where(options)
+    whereize = options.map do |k, v|
+      "#{k} = '#{v}'"
+    end.join(' AND ')
+
+    models = QuestionsDatabase.instance.execute(<<-SQL)
+      SELECT
+        *
+      FROM
+        #{self.to_s.tableize}
+      WHERE
+        #{whereize}
+    SQL
+    return nil if models.empty?
+
+    models.map { |m| self.new(m) }
+  end
+
+  def self.method_missing(method_name, *args)
+    method_name = method_name.to_s
+    if method_name.start_with?('find_by_')
+      attributes_str = method_name[('find_by_'.length..-1)]
+      attributes = attributes_str.split('_and_')
+
+      unless attributes.length == args.length
+        raise "unexpected # of arguments"
+      end
+
+      options = {}
+      attributes.each_index do |idx|
+        options[attributes[idx]] = args[idx]
+      end
+
+      self.where(options)
+    else
+      super
+    end
+  end
 end
 
 class User < ModelBase
