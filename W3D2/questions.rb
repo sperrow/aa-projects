@@ -1,5 +1,6 @@
 require 'sqlite3'
 require 'singleton'
+require 'active_support/inflector'
 
 class QuestionsDatabase < SQLite3::Database
   include Singleton
@@ -12,23 +13,37 @@ class QuestionsDatabase < SQLite3::Database
   end
 end
 
-class User
-  attr_accessor :fname, :lname
-
+class ModelBase
   def self.find_by_id(id)
-    user = QuestionsDatabase.instance.execute(<<-SQL, id)
+    model = QuestionsDatabase.instance.execute(<<-SQL, id)
       SELECT
         *
       FROM
-        users
+        #{self.to_s.tableize}
       WHERE
         id = ?
     SQL
 
-    return nil if user.empty?
+    return nil if model.empty?
 
-    User.new(user.first)
+    self.new(model.first)
   end
+
+  def self.all
+    models = QuestionsDatabase.instance.execute(<<-SQL)
+      SELECT
+        *
+      FROM
+        #{self.to_s.tableize}
+    SQL
+    return nil if models.empty?
+
+    models.map { |m| self.new(m) }
+  end
+end
+
+class User < ModelBase
+  attr_accessor :fname, :lname
 
   def self.find_by_name(fname, lname)
     users = QuestionsDatabase.instance.execute(<<-SQL, fname, lname)
@@ -51,6 +66,27 @@ class User
     @lname = options['lname']
   end
 
+  def save
+    if @id
+      QuestionsDatabase.instance.execute(<<-SQL, @fname, @lname, @id)
+        UPDATE
+          users
+        SET
+          fname = ?, lname = ?
+        WHERE
+          id = ?
+      SQL
+    else
+      QuestionsDatabase.instance.execute(<<-SQL, @fname, @lname)
+        INSERT INTO
+          users (fname, lname)
+        VALUES
+          (?, ?)
+      SQL
+      @id = QuestionsDatabase.instance.last_insert_row_id
+    end
+  end
+
   def authored_questions
     Question.find_by_author_id(@id)
   end
@@ -66,25 +102,25 @@ class User
   def liked_questions
     QuestionLike.liked_questions_for_user_id(@id)
   end
-end
 
-class Question
-  attr_accessor :title, :body, :author_id
-
-  def self.find_by_id(id)
-    question = QuestionsDatabase.instance.execute(<<-SQL, id)
+  def average_karma
+    karma = QuestionsDatabase.instance.execute(<<-SQL, @id)
       SELECT
-        *
+        CAST(COUNT(liked_by_id) AS FLOAT) / COUNT(DISTINCT(questions.id)) AS avg
       FROM
         questions
+      LEFT JOIN question_likes
+        ON question_likes.question_id = questions.id
       WHERE
-        id = ?
+        author_id = ?
     SQL
 
-    return nil if question.empty?
-
-    Question.new(question.first)
+    karma.first['avg']
   end
+end
+
+class Question < ModelBase
+  attr_accessor :title, :body, :author_id
 
   def self.find_by_author_id(author_id)
     questions = QuestionsDatabase.instance.execute(<<-SQL, author_id)
@@ -105,11 +141,36 @@ class Question
     QuestionFollow.most_followed_questions(n)
   end
 
+  def self.most_liked(n)
+    QuestionLike.most_liked_questions(n)
+  end
+
   def initialize(options)
     @id = options['id']
     @title = options['title']
     @body = options['body']
     @author_id = options['author_id']
+  end
+
+  def save
+    if @id
+      QuestionsDatabase.instance.execute(<<-SQL, @title, @body, @author_id, @id)
+        UPDATE
+          questions
+        SET
+          title = ?, body = ?, author_id = ?
+        WHERE
+          id = ?
+      SQL
+    else
+      QuestionsDatabase.instance.execute(<<-SQL,  @title, @body, @author_id)
+        INSERT INTO
+          questions (title, body, author_id)
+        VALUES
+          (?, ?, ?)
+      SQL
+      @id = QuestionsDatabase.instance.last_insert_row_id
+    end
   end
 
   def author
@@ -133,23 +194,8 @@ class Question
   end
 end
 
-class QuestionFollow
+class QuestionFollow < ModelBase
   attr_accessor :question_id, :followed_by_id
-
-  def self.find_by_id(id)
-    follow = QuestionsDatabase.instance.execute(<<-SQL, id)
-      SELECT
-        *
-      FROM
-        question_follows
-      WHERE
-        id = ?
-    SQL
-
-    return nil if follow.empty?
-
-    QuestionFollow.new(follow.first)
-  end
 
   def self.followers_for_question_id(question_id)
     followers = QuestionsDatabase.instance.execute(<<-SQL, question_id)
@@ -208,27 +254,10 @@ class QuestionFollow
     @question_id = options['question_id']
     @followed_by_id = options['followed_by_id']
   end
-
 end
 
-class Reply
+class Reply < ModelBase
   attr_accessor :question_id, :author_id, :parent_id, :body
-
-  def self.find_by_id(id)
-    return nil if id.nil?
-    reply = QuestionsDatabase.instance.execute(<<-SQL, id)
-      SELECT
-        *
-      FROM
-        replies
-      WHERE
-        id = ?
-    SQL
-
-    return nil if reply.empty?
-
-    Reply.new(reply.first)
-  end
 
   def self.find_by_user_id(user_id)
     replies = QuestionsDatabase.instance.execute(<<-SQL, user_id)
@@ -268,6 +297,27 @@ class Reply
     @body = options['body']
   end
 
+  def save
+    if @id
+      QuestionsDatabase.instance.execute(<<-SQL, @question_id, @author_id, @parent_id, @body, @id)
+        UPDATE
+          replies
+        SET
+          question_id = ?, author_id = ?, parent_id = ?, body = ?
+        WHERE
+          id = ?
+      SQL
+    else
+      QuestionsDatabase.instance.execute(<<-SQL, @question_id, @author_id, @parent_id, @body)
+        INSERT INTO
+          replies (question_id, author_id, parent_id, body)
+        VALUES
+          (?, ?, ?, ?)
+      SQL
+      @id = QuestionsDatabase.instance.last_insert_row_id
+    end
+  end
+
   def author
     User.find_by_id(@author_id)
   end
@@ -294,7 +344,7 @@ class Reply
   end
 end
 
-class QuestionLike
+class QuestionLike < ModelBase
   attr_accessor :question_id, :liked_by_id
 
   def self.most_liked_questions(n)
@@ -315,21 +365,6 @@ class QuestionLike
     return nil if questions.empty?
 
     questions.map { |q| Question.find_by_id(q['id']) }
-  end
-
-  def self.find_by_id(id)
-    like = QuestionsDatabase.instance.execute(<<-SQL, id)
-      SELECT
-        *
-      FROM
-        question_likes
-      WHERE
-        id = ?
-    SQL
-
-    return nil if like.empty?
-
-    QuestionLike.new(like.first)
   end
 
   def self.likers_for_question_id(question_id)
@@ -382,5 +417,4 @@ class QuestionLike
     @question_id = options['question_id']
     @liked_by_id = options['liked_by_id']
   end
-
 end
