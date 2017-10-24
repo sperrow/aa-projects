@@ -1,7 +1,12 @@
 class UsersController < ApplicationController
   def index
     # render plain: "I'm in the index action!"
-    render json: User.all
+    if params[:query]
+      results = User.where("username LIKE '%#{params[:query]}%'")
+      render json: results
+    else
+      render json: User.all
+    end
   end
 
   def create
