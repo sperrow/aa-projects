@@ -1,0 +1,4 @@
+<% @cats.each do |cat| %>
+<p><%= cat.name %></p>
+<%= link_to "Show cat", cat_url(cat) %>
+<% end %>
