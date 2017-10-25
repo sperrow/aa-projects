@@ -8,6 +8,12 @@ class Cat < ApplicationRecord
   validates :sex, inclusion: { in: SEX,
     message: "%{value} is not a valid sex" }
 
+  has_many :cat_rental_requests,
+  primary_key: :id,
+  foreign_key: :cat_id,
+  class_name: "CatRentalRequest",
+  dependent: :destroy
+
   def age
     (Date.today - self.birth_date).to_i / 365
   end
