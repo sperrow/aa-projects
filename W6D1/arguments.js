@@ -57,6 +57,7 @@ Function.prototype.curry = function(numArgs) {
 Function.prototype.curry2 = function(numArgs) {
   const args = [];
   const _curry = (arg) => {
+    console.log(_curry.arguments);
     args.push(arg);
     if (args.length === numArgs) {
       console.log("test");
@@ -112,6 +113,8 @@ Function.prototype.curry2 = function(numArgs) {
 
 // const cSum = curriedSum(4);
 // console.log(cSum(5)(30)(20)(1)); // => 56
+
+
 
 function sumThree(num1, num2, num3) {
   return num1 + num2 + num3;
