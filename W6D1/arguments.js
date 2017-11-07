@@ -57,7 +57,6 @@ Function.prototype.curry = function(numArgs) {
 Function.prototype.curry2 = function(numArgs) {
   const args = [];
   const _curry = (arg) => {
-    console.log(_curry.arguments);
     args.push(arg);
     if (args.length === numArgs) {
       console.log("test");
