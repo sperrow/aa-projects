@@ -7,10 +7,11 @@ const Asteroid = function Asteroid(options = {}) {
   options.radius = Asteroid.RADIUS;
   options.color = Asteroid.COLOR;
   options.vel = options.vel || Util.randomVec(Asteroid.SPEED);
+  // options.game = options.game;
   MovingObject.call(this, options);
 };
 
-Asteroid.COLOR = "brown";
+Asteroid.COLOR = "purple";
 Asteroid.RADIUS = 30;
 Asteroid.SPEED = 4;
 

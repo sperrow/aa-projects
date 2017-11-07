@@ -68,9 +68,12 @@
 /***/ (function(module, exports, __webpack_require__) {
 
 const GameView = __webpack_require__(1);
+const Game = __webpack_require__(2);
 
 document.addEventListener("DOMContentLoaded", function() {
   const canvas = document.getElementById("game-canvas");
+  canvas.width = Game.DIM_X;
+  canvas.height = Game.DIM_Y;
   const ctx = canvas.getContext("2d");
   const gameView = new GameView(ctx);
   gameView.start();
@@ -91,7 +94,7 @@ const GameView = function GameView(ctx) {
 
 GameView.prototype.start = function() {
   setInterval(() => {
-    this.game.moveObjects();
+    this.game.step();
     this.game.draw(this.ctx);
   }, 20);
 };
@@ -110,18 +113,18 @@ const Game = function Game() {
   this.addAsteroids();
 };
 
-Game.DIM_X = 500;
-Game.DIM_Y = 500;
-Game.NUM_ASTEROIDS = 10;
+Game.DIM_X = 1000;
+Game.DIM_Y = 1000;
+Game.NUM_ASTEROIDS = 20;
 
 Game.prototype.addAsteroids = function() {
   for(let i = 0; i < Game.NUM_ASTEROIDS; i++) {
-    this.asteroids.push(new Asteroid({pos: this.randomPosition()}));
+    this.asteroids.push(new Asteroid({pos: this.randomPosition(), game: this}));
   }
 };
 
 Game.prototype.randomPosition = function() {
-  return [Math.floor(Math.random() * 500), Math.floor(Math.random() * 500)];
+  return [Math.floor(Math.random() * Game.DIM_X), Math.floor(Math.random() * Game.DIM_Y)];
 };
 
 Game.prototype.draw = function(ctx) {
@@ -135,6 +138,29 @@ Game.prototype.moveObjects = function() {
   this.asteroids.forEach(function(asteroid) {
     asteroid.move();
   });
+};
+
+Game.prototype.wrap = function(pos) {
+  return [pos[0] % Game.DIM_X, pos[1] % Game.DIM_Y];
+};
+
+Game.prototype.checkCollisions = function() {
+  for(let i = 0; i < this.asteroids.length; i++) {
+    for(let j = i + 1; j < this.asteroids.length; j++) {
+      if (this.asteroids[i].isCollidedWith(this.asteroids[j])) {
+        this.asteroids[i].collideWith(this.asteroids[j]);
+      }
+    }
+  }
+};
+
+Game.prototype.step = function() {
+  this.moveObjects();
+  this.checkCollisions();
+};
+
+Game.prototype.remove = function(asteroid) {
+  this.asteroids.splice(this.asteroids.indexOf(asteroid), 1);
 };
 
 module.exports = Game;
@@ -153,10 +179,11 @@ const Asteroid = function Asteroid(options = {}) {
   options.radius = Asteroid.RADIUS;
   options.color = Asteroid.COLOR;
   options.vel = options.vel || Util.randomVec(Asteroid.SPEED);
+  // options.game = options.game;
   MovingObject.call(this, options);
 };
 
-Asteroid.COLOR = "brown";
+Asteroid.COLOR = "purple";
 Asteroid.RADIUS = 30;
 Asteroid.SPEED = 4;
 
@@ -194,11 +221,14 @@ module.exports = Util;
 /* 5 */
 /***/ (function(module, exports) {
 
+// const Util = require("./util");
+
 const MovingObject = function MovingObject(options) {
   this.pos = options.pos;
   this.vel = options.vel;
   this.radius = options.radius;
   this.color = options.color;
+  this.game = options.game;
 };
 
 MovingObject.prototype.draw = function(ctx) {
@@ -220,6 +250,19 @@ MovingObject.prototype.draw = function(ctx) {
 MovingObject.prototype.move = function() {
   this.pos[0] += this.vel[0];
   this.pos[1] += this.vel[1];
+  this.pos = this.game.wrap(this.pos);
+};
+
+MovingObject.prototype.collideWith = function(otherObject) {
+  this.game.remove(this);
+  this.game.remove(otherObject);
+};
+
+MovingObject.prototype.isCollidedWith = function(otherObject) {
+  const dist = Math.sqrt(Math.pow(this.pos[0] - otherObject.pos[0], 2)
+                       + Math.pow(this.pos[1] - otherObject.pos[1], 2));
+  return dist < (this.radius + otherObject.radius);
+  // return Util.distance(this, otherObject) < (this.radius + otherObject.radius);
 };
 
 module.exports = MovingObject;
