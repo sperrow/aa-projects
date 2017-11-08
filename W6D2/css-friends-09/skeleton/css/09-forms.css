@@ -1,0 +1,23 @@
+/* PHASE 9: Forms */
+
+.content-main .thumb, .main-form {
+  float: left;
+}
+
+.main-form {
+  width: 450px;
+  margin-left: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 20px;
+  background: #eee;
+}
+
+.main-text {
+  width: 100%
+}
+
+.main-form input {
+  display: block;
+  
+}
