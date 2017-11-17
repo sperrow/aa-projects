@@ -103,3 +103,42 @@
    text-align: center;
    color: $black;
  }
+
+
+.main {
+  display: flex;
+
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .pokemon-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 500px;
+    width: 80%;
+  }
+
+  .thumbnail-img {
+    width: 20px;
+  }
+
+  .detail-img {
+    width: 300px;
+  }
+
+  .items-section {
+    width: 50%;
+  }
+
+  .items-list {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .item-img {
+    width: 100px;
+  }
+}
